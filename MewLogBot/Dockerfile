@@ -11,6 +11,6 @@ WORKDIR /app
 
 COPY ./target/MewLogBot-0.0.1-SNAPSHOT.jar ./MewLogBot.jar
 
-#EXPOSE 8080
+EXPOSE 8080
 
 CMD ["java", "-jar", "/app/MewLogBot.jar"]
