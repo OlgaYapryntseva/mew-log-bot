@@ -9,7 +9,7 @@ ENV SPRING_DATA_MONGDB_URL="mongodb+srv://13012018yaprinceva:olga1309@cluster0.j
 
 WORKDIR /app
 
-COPY .MewLogBot/target/MewLogBot-0.0.1-SNAPSHOT.jar ./MewLogBot.jar
+COPY ./MewLogBot/target/MewLogBot-0.0.1-SNAPSHOT.jar ./MewLogBot.jar
 
 EXPOSE 8080
 
