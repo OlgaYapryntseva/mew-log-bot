@@ -2,5 +2,5 @@ services:
   - name: mewlogbot
     type: web
     plan: starter
-    dockerfilePath: ./MewLogBot/Dockerfile
+    dockerfilePath: MewLogBot/Dockerfile
     runtime: docker
