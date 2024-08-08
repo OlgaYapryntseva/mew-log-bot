@@ -1,6 +1,8 @@
 package com.mewlog.service.reminder;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,26 +24,32 @@ public class ReminderServiceImpl implements ReminderService {
 	final Integer daysUntilLitterChange = 1;
 	
 	@Override
-	@Scheduled(cron = "0 0 9 * * ?")
+	@Scheduled(cron = "0 0 9 * * ?", zone = "UTC")
 	//@Scheduled(cron = "0 */1 * * * ?")
 	public void sendReminderNoPoop() {
 		 List<ReminderDto> reminderList = animalRepository.findLastLitterBoxVisitDate();
 		    for (ReminderDto rem : reminderList) {
 		        String reminderText = "<b><i>Мяу-сигнал 🚨: </i></b>\nПоследний кошачий сюрприз 💩: " + rem.getLastPoopDate().format(format);
+		        LocalDateTime now = LocalDateTime.now();
 		        for (Long ownerId : rem.getOwnersId()) {
+		        	long daysBetween = ChronoUnit.DAYS.between(now, rem.getLastPoopDate());
+		        	if(daysBetween >= daysWithNoPoop)
 		        	sendMessageService.sendReminderMessage(ownerId, reminderText);
 		        }
 		    }
 	}
 
 	@Override
-	@Scheduled(cron = "0 0 9 * * ?")
+	@Scheduled(cron = "0 0 9 * * ?", zone = "UTC")
 	//@Scheduled(cron = "0 */2 * * * ?")
 	public void sendReminderLitterChange() {
 		List<ReminderDto> reminderList = animalRepository.findLastLitterBoxChangeDate();
 	    for (ReminderDto rem : reminderList) {
 	        String reminderText = "<b><i>Мяу-сигнал 🚨: </i></b>\nПоследняя уборка лотка была : " + rem.getLastPoopDate().format(format);
+	        LocalDateTime now = LocalDateTime.now();
 	        for (Long ownerId : rem.getOwnersId()) {
+	        	long daysBetween = ChronoUnit.DAYS.between(now, rem.getLastPoopDate());
+	        	if(daysBetween >= daysUntilLitterChange)
 	        	sendMessageService.sendReminderMessage(ownerId, reminderText);
 	        }
 	    }		

@@ -34,6 +34,7 @@ public class SendMessageServiceImpl implements SendMessageService {
 		if (textToSend.contains("Выберите период для нашего кошачьего отчета")) {
 			message.setReplyMarkup(buttonCrafterService.showReportOptions(chatId));
 		}
+		System.out.println("sendMessage text = " + textToSend);
 		try {
 			telegramBot.execute(message);
 		} catch (TelegramApiException e) {

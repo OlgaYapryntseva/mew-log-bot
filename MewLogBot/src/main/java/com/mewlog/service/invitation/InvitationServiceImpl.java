@@ -1,6 +1,8 @@
 package com.mewlog.service.invitation;
 
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.mewlog.repository.AnimalRepository;
@@ -17,6 +19,7 @@ public class InvitationServiceImpl implements InvitationService {
 	@Autowired
 	AnimalRepository animalRepository;
 	
+	@Override
     public String generateInvitationLink(String animalId) {
         String token = UUID.randomUUID().toString();
         saveInvitationToken(animalId, token);
@@ -28,6 +31,7 @@ public class InvitationServiceImpl implements InvitationService {
         invitationRepository.save(invitation);
     }
     
+    @Override
     public String handleInvitation(String token, Long chatId) {
     	System.out.println("token = " + token);
         Invitation invitation = invitationRepository.findByToken(token);
@@ -44,5 +48,15 @@ public class InvitationServiceImpl implements InvitationService {
             return "Неверный токен приглашения.";
         }
     }
+    
+    @Override
+    public String extractToken(String url) {
+		Pattern pattern = Pattern.compile("token=([^&]+)");
+		Matcher matcher = pattern.matcher(url);
+		if (matcher.find()) {
+			return matcher.group(1);
+		}
+		return null;
+	}
 
 }

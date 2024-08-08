@@ -6,4 +6,7 @@ public interface InvitationService {
 	String generateInvitationLink(String animalId);
 	
 	String handleInvitation(String token, Long chatId);
+	
+	String extractToken(String url);
+	
 }
