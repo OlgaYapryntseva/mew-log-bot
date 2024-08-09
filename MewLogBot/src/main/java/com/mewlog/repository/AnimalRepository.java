@@ -11,6 +11,8 @@ import com.mewlog.service.reminder.dto.ReminderDto;
 
 public interface AnimalRepository extends MongoRepository<Animal, String>{
 
+	long count();
+	
 	Animal findByOwnersId(Long ownerId);
 	
 	@Aggregation(pipeline = {

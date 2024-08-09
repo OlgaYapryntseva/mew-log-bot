@@ -249,6 +249,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 		}
 		try {
 			execute(message);
+			logger.info("TelegtamBot sendMessage: chatId: %s text: %s", chatId, textToSend);
 		} catch (TelegramApiException e) {
 			logger.error("Error occurred while sending message: ", e);
 		}
@@ -262,6 +263,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 		message.setParseMode(ParseMode.HTML);
 		try {
 			execute(message);
+			logger.info("TelegtamBot sendMessage: chatId: %s text: %s", chatId, textToSend);
 		} catch (TelegramApiException e) {
 			logger.error("Error occurred while sending message: ", e);
 		}

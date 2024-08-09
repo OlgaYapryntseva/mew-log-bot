@@ -1,21 +1,14 @@
 package com.mewlog.service.reminder;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponents;
-import org.springframework.web.util.UriComponentsBuilder;
-
 import com.mewlog.repository.AnimalRepository;
 import com.mewlog.service.TelegramBot;
 import com.mewlog.service.reminder.dto.ReminderDto;
@@ -69,25 +62,7 @@ public class ReminderServiceImpl implements ReminderService {
 	@Override
 	@Scheduled(cron = "0 */2 * * * ?")
 	public void sendServerNonStop() {
-		 logger.warn("sendServerNonStop");
-//        HttpURLConnection connection = null;
-//        try {
-//            UriComponents uri = UriComponentsBuilder.fromUriString("https://mew-log-bot.onrender.com").build();
-//            URL url = uri.toUri().toURL();
-//            connection = (HttpURLConnection) url.openConnection();
-//            connection.setRequestMethod("GET");
-//            int responseCode = connection.getResponseCode();
-//            if (responseCode == 200) {
-//                logger.info("Server is awake");
-//            } else {
-//                logger.warn("Failed to wake up the server, response code: " + responseCode);
-//            }
-//        } catch (IOException e) {
-//            logger.error("Error while trying to wake up the server", e);
-//        } finally {
-//            if (connection != null) {
-//                connection.disconnect();
-//            }
-//        }
+		 long count = animalRepository.count();
+		 logger.warn("sendServerNonStop count animal = %s", count);
     }
 }
