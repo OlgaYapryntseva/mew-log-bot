@@ -67,7 +67,7 @@ public class ReminderServiceImpl implements ReminderService {
 	}
 	
 	@Override
-    @Scheduled(cron = "0 0/30 * * * ?", zone = "UTC")
+    @Scheduled(cron = "0 0/2 * * * ?")
 	public void sendServerNonStop() {
         HttpURLConnection connection = null;
         try {
