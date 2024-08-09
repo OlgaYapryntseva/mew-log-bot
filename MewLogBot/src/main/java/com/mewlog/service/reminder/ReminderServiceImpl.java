@@ -67,26 +67,27 @@ public class ReminderServiceImpl implements ReminderService {
 	}
 	
 	@Override
-    @Scheduled(cron = "0 0/2 * * * ?")
+	@Scheduled(cron = "0 */2 * * * ?")
 	public void sendServerNonStop() {
-        HttpURLConnection connection = null;
-        try {
-            UriComponents uri = UriComponentsBuilder.fromUriString("https://mew-log-bot.onrender.com").build();
-            URL url = uri.toUri().toURL();
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-            int responseCode = connection.getResponseCode();
-            if (responseCode == 200) {
-                logger.info("Server is awake");
-            } else {
-                logger.warn("Failed to wake up the server, response code: " + responseCode);
-            }
-        } catch (IOException e) {
-            logger.error("Error while trying to wake up the server", e);
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-        }
+		 logger.warn("sendServerNonStop");
+//        HttpURLConnection connection = null;
+//        try {
+//            UriComponents uri = UriComponentsBuilder.fromUriString("https://mew-log-bot.onrender.com").build();
+//            URL url = uri.toUri().toURL();
+//            connection = (HttpURLConnection) url.openConnection();
+//            connection.setRequestMethod("GET");
+//            int responseCode = connection.getResponseCode();
+//            if (responseCode == 200) {
+//                logger.info("Server is awake");
+//            } else {
+//                logger.warn("Failed to wake up the server, response code: " + responseCode);
+//            }
+//        } catch (IOException e) {
+//            logger.error("Error while trying to wake up the server", e);
+//        } finally {
+//            if (connection != null) {
+//                connection.disconnect();
+//            }
+//        }
     }
 }
