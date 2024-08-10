@@ -17,16 +17,15 @@ import com.mewlog.repository.model.Animal;
 import com.mewlog.repository.model.Logs;
 import com.mewlog.repository.model.Owner;
 import com.mewlog.service.buttoncrafter.ButtonCrafterService;
+import com.mewlog.service.dto.AnimalDto;
 import com.mewlog.service.invitation.InvitationService;
 import com.mewlog.service.reports.ReportsService;
-import com.mewlog.service.reports.dto.ReportLogDto;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -50,12 +49,17 @@ public class TelegramBot extends TelegramLongPollingBot {
 	ReportsService reportsService;
 
 	final Map<String, BiConsumer<Long, String>> commandActions = new HashMap<>();
-	final Logger logger = LoggerFactory.getLogger(TelegramBot.class);
 	final Map<Long, Boolean> waitingForAnimalName = new HashMap<>();
 	final Map<Long, Boolean> waitingForLogList = new HashMap<>();
 	final Map<Long, Boolean> waitingForLogPrivate = new HashMap<>();
+	final Map<Long, Boolean> waitingForKeyword = new HashMap<>();
+	final List<AnimalDto> listAnimal = new ArrayList<>();
+	AnimalDto selectedAnimal = null;
+	final Map<Long, String> keyword = new HashMap<>();
 	final Map<Long, String> logOptions = new HashMap<>();
 	final BotConfig config;
+	
+	final Logger logger = LoggerFactory.getLogger(TelegramBot.class);
 
 	@SuppressWarnings("deprecation")
 	public TelegramBot(BotConfig config) {
@@ -66,6 +70,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 			logger.error("Error setting bot's command list: " + e.getMessage());
 		}
 		commandActions.put("/start", (id, name) -> startCommandReceived(id, name));
+		commandActions.put("/option", (id, name) -> optionCommandReceived(id));
 		commandActions.put("/invitation", (id, name) -> invitationCommandReceived(id));
 		commandActions.put("/report", (id, name) -> reportCommandReceived(id));
 		commandActions.put("/about", (id, name) -> aboutCommandReceived(id));
@@ -88,19 +93,28 @@ public class TelegramBot extends TelegramLongPollingBot {
 		if (update.hasMessage() && update.getMessage().hasText()) {
 			String messageText = update.getMessage().getText();
 			long chatId = update.getMessage().getChatId();
-
+			
+			System.out.println("message = " + messageText);
+			
 			if (waitingForAnimalName.getOrDefault(chatId, false)) {
 				handleAnimalNameInput(chatId, update, messageText);
 				return;
 			}
 
-			if (waitingForLogList.getOrDefault(chatId, false)) {
-				handleLogEntryInput(chatId, messageText);
-				return;
+			if (waitingForLogList.getOrDefault(chatId, false) || waitingForLogPrivate.getOrDefault(chatId, false)) {
+				if (config.containsCommandKey(messageText) || config.containsOptionKey(messageText)) {
+					waitingForLogList.put(chatId, false);
+					waitingForLogPrivate.put(chatId, false);
+				} else {
+					handleLogEntryInput(chatId, messageText);
+					return;
+				}
 			}
 
-			if (waitingForLogPrivate.getOrDefault(chatId, false)) {
-				handleLogEntryInput(chatId, messageText);
+			if (waitingForKeyword.getOrDefault(chatId, false)) {
+				keyword.put(chatId, messageText);
+				waitingForKeyword.put(chatId, false);
+				handleReportTypePeriod(chatId);
 				return;
 			}
 
@@ -112,63 +126,98 @@ public class TelegramBot extends TelegramLongPollingBot {
 					sendMessage(chatId, "Неверный формат ссылки");
 				}
 			}
-
-			BiConsumer<Long, String> action = commandActions.getOrDefault(messageText, (id, name) -> sendMessage(id, MenuText.DEVELOPING.getKey()));
+			
+			BiConsumer<Long, String> action = commandActions.getOrDefault(messageText,
+					(id, name) -> sendMessage(id, MenuText.DEVELOPING.getKey()));
 			action.accept(chatId, update.getMessage().getChat().getFirstName());
 
 		} else if (update.hasCallbackQuery()) {
 			String callbackData = update.getCallbackQuery().getData();
+			System.out.println("call = " + callbackData);
 			long chatId = update.getCallbackQuery().getMessage().getChatId();
 			if ("add animal".equals(callbackData)) {
 				addAnimalCommandReceived(chatId);
-			} else if ("add log".equals(callbackData)) {
+			} else if ("Поменять питомца".equals(callbackData)) {
+				selectAminal(chatId);
+			} else if ("add log".equals(callbackData) || containsAnimalId(callbackData)) {
 				showLogOptions(chatId);
 			} else if ("Пользовательское сообщение".equals(callbackData)) {
 				addLogPrivate(chatId);
 			} else if (waitingForLogList.getOrDefault(chatId, false)) {
 				handleLogEntryInput(chatId, callbackData);
+			} else if (callbackData.contains("отчет за период")) {
+				keyword.remove(chatId);
+				handleReportTypePeriod(chatId);
+			} else if (callbackData.contains("отчет по ключевому слову")) {
+				addKeyword(chatId);
 			} else if ("день".equals(callbackData) || "месяц".equals(callbackData) || "год".equals(callbackData)) {
-				handleReportPeriod(chatId, callbackData);
-			} else if (callbackData.contains("отчет")) {
-				handleReportTypePeriod(chatId, callbackData);
+				if (keyword.get(chatId) != null && !keyword.get(chatId).isEmpty()) {
+					handleReportKeyAndPeriod(chatId, callbackData, keyword.get(chatId));
+				} else {
+					handleReportPeriod(chatId, callbackData);
+				}	
+			} else {
+				BiConsumer<Long, String> action = commandActions.getOrDefault(callbackData,
+						(id, name) -> sendMessage(id, MenuText.DEVELOPING.getKey()));
+				action.accept(chatId, "");
 			}
 		}
 	}
 
-	private void handleReportTypePeriod(long chatId, String callbackData) {
+	private void selectAminal(long chatId) {
+		selectedAnimal = null;
+		sendMessage(chatId, "Выберете питомца: ", buttonCrafterService.showListAnimal(chatId, listAnimal));	
+	}
+
+	private void optionCommandReceived(long chatId) {
+		sendMessage(chatId, "Выберете задачу! 🎯");
+	}
+	
+	private void addKeyword(long chatId) {
+		sendMessage(chatId, MenuText.USER_TEXT.getKey());
+		waitingForKeyword.put(chatId, true);		
+	}
+
+	private void handleReportTypePeriod(long chatId) {
 		sendMessage(chatId, MenuText.REPORT_PERIOD.getKey());
 	}
-
+	
 	private void handleReportPeriod(long chatId, String callbackData) {
-		LocalDateTime now = LocalDateTime.now();
-		LocalDateTime start = now.with(LocalTime.MIN);
-		LocalDateTime end = now.with(LocalTime.MAX);
-		if (callbackData.equals("месяц")) {
-			start = now.minusMonths(1).with(LocalTime.MIN);
-		} else if (callbackData.equals("год")) {
-			start = now.minusYears(1).with(LocalTime.MIN);
-		}
-
-		List<ReportLogDto> reportLogs = reportsService.fingMessageByPeriod(chatId, start, end);
-		String data = reportLogs.stream().map(r -> "\n" + r.getDateCreate() + " - " + r.getMessage())
-				.collect(Collectors.joining());
-		sendMessage(chatId,
-				data.isEmpty() ? "Упс, за этот период пусто! 🐾" : "<b>Отчет за " + callbackData + ": </b>" + data);
+		String data = reportsService.fingMessageByPeriod(chatId, callbackData, selectedAnimal.getAnimalId());
+		sendMessage(chatId, data.isEmpty() ? 
+				"Упс, за этот период пусто! 🐾" : "<b><i>" + selectedAnimal.getAnimalName() + " 💖\n</i>Отчет за " + callbackData + ": </b>" + data);
 	}
 
+	private void handleReportKeyAndPeriod(long chatId, String keyword, String callbackData ) {
+		String data = reportsService.fingMessageByKeyAndPeriod(chatId, keyword, callbackData, selectedAnimal.getAnimalId());
+		sendMessage(chatId, data.isEmpty() ? 
+				"Упс, за этот период пусто! 🐾" :  "<b><i>" + selectedAnimal.getAnimalName() + " 💖\n</i>Отчет за " + callbackData + ": </b>" + data);
+	}
+	
 	private void reportCommandReceived(long chatId) {
 		InlineKeyboardMarkup showReportType = buttonCrafterService.showReportTypeOptions(chatId);
 		sendMessage(chatId, MenuText.REPORT_PERIOD.getKey(), showReportType);
 	}
 
 	private void startCommandReceived(long chatId, String name) {
+		listAnimal.clear();
+		List<Animal> animals = animalRepository.findByOwnersId(chatId);
+		animals.forEach(a -> listAnimal.add(new AnimalDto(a.getAnimalId().toString(), a.getAnimalName())));
+		System.out.println("size = " + animals.size());
 		String answer = "<b><i>Мяу, " + name + "! 🐾 </i></b> \nРад видеть тебя здесь! 😺";
 		sendMessage(chatId, answer);
+		if(listAnimal.size() == 1) {
+			selectedAnimal = new AnimalDto(animals.get(0).getAnimalId().toString(), animals.get(0).getAnimalName());
+		}
+		if (listAnimal.size() > 1) {
+			selectAminal(chatId);
+		}
 	}
 
 	private void invitationCommandReceived(long chatId) {
-		Animal animal = animalRepository.findByOwnersId(chatId);
-		String inviteLink = invitationService.generateInvitationLink(animal.getAnimalId());
+		List<Animal> animal = animalRepository.findByOwnersId(chatId);
+		String inviteLink = invitationService.generateInvitationLink(animal.get(0).getAnimalId());
+		sendMessage(chatId, "Перешлите это сообщение другому хозяину питомца по имени " + selectedAnimal.getAnimalName()  + " 👇 \n");
 		sendMessage(chatId, "Щелкни по ссылке: " + config.getBotLink() + "\n" + "и отправь боту этот текст: \n");
 		sendMessage(chatId, inviteLink);
 	}
@@ -199,13 +248,21 @@ public class TelegramBot extends TelegramLongPollingBot {
 			owner.addAnimal(animal.getAnimalId());
 			ownerRepository.save(owner);
 			waitingForAnimalName.remove(chatId);
-			sendMessage(chatId, "<b>Ваш питомец теперь с нами! 🎉</b>");
+			AnimalDto animalDto = new AnimalDto(animal.getAnimalId().toString(), animal.getAnimalName());
+			listAnimal.add(animalDto);
+			selectedAnimal = animalDto;
+			sendMessage(chatId, "<b>Ваш питомец <i>" + animalDto.getAnimalName() + "</i> теперь с нами! 🎉</b>");
+			
+			optionCommandReceived(chatId);
 		}
 	}
 
 	private void handleLogEntryInput(long chatId, String logEntry) {
-		if (waitingForLogList.containsKey(chatId) && logEntry != null) {
-			Animal animal = animalRepository.findByOwnersId(chatId);
+		System.out.println("handleLogEntryInput = " + logEntry + " ID = " + (waitingForLogList.containsKey(chatId) && logEntry != null)
+				 + "  " + (waitingForLogPrivate.containsKey(chatId) && logEntry != null));
+		if ((waitingForLogList.containsKey(chatId) && logEntry != null) || (waitingForLogPrivate.containsKey(chatId) && logEntry != null)) {
+			System.out.println("handleLogEntryInput mess = "  + logEntry + "id = " + selectedAnimal.getAnimalId());		
+			Animal animal = animalRepository.findById(new ObjectId(selectedAnimal.getAnimalId())).get();
 			if (animal != null) {
 				Logs log = new Logs();
 				log.setMessage(logEntry);
@@ -214,7 +271,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 				waitingForLogList.remove(chatId);
 				logOptions.remove(chatId);
 				sendMessage(chatId, logEntry);
-				sendMessage(chatId, "<i>Мяу - эта запись в базе! ✔</i>");
+				sendMessage(chatId, "<i>Мяу - эта запись в базе у <b>" + selectedAnimal.getAnimalName() + "</b>! ✔️</i>");
 			} else {
 				sendMessage(chatId, "Ваш питомец спрятался! Добавьте его, чтобы продолжить! 🙀");
 			}
@@ -232,7 +289,10 @@ public class TelegramBot extends TelegramLongPollingBot {
 	}
 
 	private void showLogOptions(long chatId) {
-		sendMessage(chatId, "Выберите из списка или добавьте свое: ", buttonCrafterService.showLogOptions(chatId));
+		if(selectedAnimal == null) {
+			sendMessage(chatId, "Пожалуйста, начни с команды /start");
+		}
+		sendMessage(chatId, "Выберите из списка или добавьте свое для <b>" + selectedAnimal.getAnimalName() + "</b>: ", buttonCrafterService.showLogOptions(chatId));
 		waitingForLogList.put(chatId, true);
 	}
 
@@ -241,15 +301,20 @@ public class TelegramBot extends TelegramLongPollingBot {
 		message.setChatId(String.valueOf(chatId));
 		message.setText(textToSend);
 		message.setParseMode(ParseMode.HTML);
-		if (textToSend.contains("Мяу")) {
+		if (textToSend.contains("Мяу") && !textToSend.contains("пиши ...")) {
+			if(listAnimal.size() <= 1 || textToSend.contains("запись")) {
 			message.setReplyMarkup(buttonCrafterService.createInlineKeyboard(chatId));
+			} 
 		}
 		if (textToSend.contains(MenuText.REPORT_PERIOD.getKey())) {
 			message.setReplyMarkup(buttonCrafterService.showReportOptions(chatId));
 		}
+		if (textToSend.equals("Выберете задачу! 🎯")) {
+			message.setReplyMarkup(buttonCrafterService.createAllOptions(chatId));
+		}
 		try {
 			execute(message);
-			logger.info("TelegtamBot sendMessage: chatId: %s text: %s", chatId, textToSend);
+			logger.info("TelegtamBot sendMessage: chatId:{} text: {}", chatId, textToSend);
 		} catch (TelegramApiException e) {
 			logger.error("Error occurred while sending message: ", e);
 		}
@@ -263,10 +328,13 @@ public class TelegramBot extends TelegramLongPollingBot {
 		message.setParseMode(ParseMode.HTML);
 		try {
 			execute(message);
-			logger.info("TelegtamBot sendMessage: chatId: %s text: %s", chatId, textToSend);
+			logger.info("TelegtamBot sendMessage: chatId: {} text: {}", chatId, textToSend);
 		} catch (TelegramApiException e) {
 			logger.error("Error occurred while sending message: ", e);
 		}
 	}
 
+	private Boolean containsAnimalId(String message) {
+		return listAnimal.stream().anyMatch(animal -> animal.getAnimalId().equals(message));
+	}
 }

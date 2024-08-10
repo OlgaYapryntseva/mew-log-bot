@@ -3,6 +3,8 @@ package com.mewlog.service.invitation;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.mewlog.repository.AnimalRepository;
@@ -20,20 +22,20 @@ public class InvitationServiceImpl implements InvitationService {
 	AnimalRepository animalRepository;
 	
 	@Override
-    public String generateInvitationLink(String animalId) {
+    public String generateInvitationLink(ObjectId animalId) {
         String token = UUID.randomUUID().toString();
         saveInvitationToken(animalId, token);
-        return "token=" + token;
+        return "Hi, MewLogBot=" + token;
     }
 
-    private void saveInvitationToken(String animalId, String token) {
+    private void saveInvitationToken(ObjectId animalId, String token) {
         Invitation invitation = new Invitation(animalId, token);
         invitationRepository.save(invitation);
     }
     
     @Override
     public String handleInvitation(String token, Long chatId) {
-    	System.out.println("token = " + token);
+    	System.out.println("Mew = " + token);
         Invitation invitation = invitationRepository.findByToken(token);
         if (invitation != null) {
             Animal animal = animalRepository.findById(invitation.getAnimalId()).orElse(null);
@@ -51,7 +53,7 @@ public class InvitationServiceImpl implements InvitationService {
     
     @Override
     public String extractToken(String url) {
-		Pattern pattern = Pattern.compile("token=([^&]+)");
+		Pattern pattern = Pattern.compile("Hi, MewLogBot=([^&]+)");
 		Matcher matcher = pattern.matcher(url);
 		if (matcher.find()) {
 			return matcher.group(1);

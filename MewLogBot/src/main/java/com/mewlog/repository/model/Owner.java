@@ -3,6 +3,8 @@ package com.mewlog.repository.model;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -15,7 +17,7 @@ public class Owner {
 	Long ownerId;
 	String ownerName;
 	@Indexed(unique = true)
-	Set<String> animals;
+	Set<ObjectId> animals;
 	LocalDateTime dateRegister;
 	
 	public Owner(Long ownerId, String ownerName) {
@@ -25,7 +27,7 @@ public class Owner {
 		this.dateRegister = LocalDateTime.now();
 	}
 	
-	public void addAnimal(String animalId) {
+	public void addAnimal(ObjectId animalId) {
 		if(!animals.contains(animalId))
 			animals.add(animalId);
 	}

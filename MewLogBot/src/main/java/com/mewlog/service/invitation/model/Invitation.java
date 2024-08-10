@@ -1,5 +1,6 @@
 package com.mewlog.service.invitation.model;
 
+import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import lombok.Data;
@@ -10,9 +11,9 @@ import lombok.Data;
 public class Invitation {
     @Id
     String token;
-    String animalId;
+    ObjectId animalId;
 
-    public Invitation(String animalId, String token) {
+    public Invitation(ObjectId animalId, String token) {
         this.animalId = animalId;
         this.token = token;
     }

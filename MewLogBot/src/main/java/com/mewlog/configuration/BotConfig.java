@@ -26,13 +26,27 @@ public class BotConfig {
     String botLink;
     
     List<BotCommand> listBotCommand = new ArrayList<>();
-
+    List<BotCommand> listBotOption = new ArrayList<>();
+    
     public BotConfig() {
         listBotCommand.add(new BotCommand("/start", "начать взаимодействие с ботом"));
-        listBotCommand.add(new BotCommand("/invitation", "пригласить второго хозяина"));
-        listBotCommand.add(new BotCommand("/report", "сделать отчет"));
+        listBotCommand.add(new BotCommand("/option", "вести список всех команд"));
+        listBotOption.add(new BotCommand("/invitation", "пригласить второго хозяина"));
+        listBotOption.add(new BotCommand("/report", "сделать отчет"));
         listBotCommand.add(new BotCommand("/about", "узнать общую информацию о боте"));
         listBotCommand.add(new BotCommand("/help", "получить информацию о доступных командах"));
     } 
+    
+	public boolean containsCommandKey(String message) {
+	    return listBotCommand.stream()
+	                         .map(BotCommand::getCommand)
+	                         .anyMatch(message::contains);
+	}
+	
+	public boolean containsOptionKey(String message) {
+	    return listBotOption.stream()
+	                         .map(BotCommand::getCommand)
+	                         .anyMatch(message::contains);
+	}
     
 }

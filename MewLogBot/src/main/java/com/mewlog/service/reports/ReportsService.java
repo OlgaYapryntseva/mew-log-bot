@@ -1,14 +1,10 @@
 package com.mewlog.service.reports;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import com.mewlog.service.reports.dto.ReportLogDto;
-
 
 public interface ReportsService {
 	
-	List<ReportLogDto> fingMessageByPeriod(long chatId, LocalDateTime dateStart, LocalDateTime dateEnd);
+	String fingMessageByPeriod(long chatId, String callbackData, String animalId);
 	
-	List<ReportLogDto> fingMessageByTextAndPeriod(long chatId, String text, LocalDateTime dateStart, LocalDateTime dateEnd);
+	String fingMessageByKeyAndPeriod(long chatId, String callbackData, String keyword, String animalId);
 
 }

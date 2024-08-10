@@ -1,9 +1,10 @@
 package com.mewlog.service.invitation;
 
+import org.bson.types.ObjectId;
 
 public interface InvitationService {
 	
-	String generateInvitationLink(String animalId);
+	String generateInvitationLink(ObjectId animalId);
 	
 	String handleInvitation(String token, Long chatId);
 	

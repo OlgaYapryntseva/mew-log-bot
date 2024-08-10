@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import com.mewlog.repository.AnimalRepository;
 import com.mewlog.repository.model.Animal;
+import com.mewlog.service.dto.AnimalDto;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -21,15 +22,44 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService{
 	
 	public InlineKeyboardMarkup createInlineKeyboard(long chatId) {
 		List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Записать кошачьи приключения ✏");
-		Animal animal = animalRepository.findByOwnersId(chatId);
-		if (animal == null) {
-			InlineKeyboardButton addAnimalButton = new InlineKeyboardButton("Добавить пушистого друга 😻");
+		List<Animal> animal = animalRepository.findByOwnersId(chatId);
+		if (animal.size() == 0) {
+			InlineKeyboardButton addAnimalButton = new InlineKeyboardButton("Добавить пушистого друга ➕");
 			addAnimalButton.setCallbackData("add animal");
 			keyboard.add(Collections.singletonList(addAnimalButton));
+			return new InlineKeyboardMarkup(keyboard);
 		}
+		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Записать кошачьи приключения ✏");
 		addLogButton.setCallbackData("add log");
 		keyboard.add(Collections.singletonList(addLogButton));
+		return new InlineKeyboardMarkup(keyboard);
+	}
+	
+	public InlineKeyboardMarkup createAllOptions(long chatId) {
+		List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+		InlineKeyboardButton addAnimalButton = new InlineKeyboardButton("Добавить пушистика 😻");
+		addAnimalButton.setCallbackData("add animal");
+		
+		InlineKeyboardButton addOwnerButton = new InlineKeyboardButton("Добавить ещё хозяина 🐾");
+		addOwnerButton.setCallbackData("/invitation");	
+		
+		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Записать приключения ✏");
+		addLogButton.setCallbackData("add log");
+		
+		InlineKeyboardButton addReportButton = new InlineKeyboardButton("Создать отчет 📊");
+		addReportButton.setCallbackData("/report");
+		
+		InlineKeyboardButton addSubButton = new InlineKeyboardButton("Поменять питомца 🔄");
+		addSubButton.setCallbackData("Поменять питомца");
+
+		List<InlineKeyboardButton> row1 = Arrays.asList(addAnimalButton, addOwnerButton);
+	    List<InlineKeyboardButton> row2 = Arrays.asList(addLogButton, addReportButton);
+	    List<InlineKeyboardButton> row3 = Arrays.asList(addSubButton);
+
+		keyboard.add(row1);
+		keyboard.add(row2);
+		keyboard.add(row3);
+
 		return new InlineKeyboardMarkup(keyboard);
 	}
 
@@ -42,8 +72,8 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService{
 		InlineKeyboardButton litterChangeButton = new InlineKeyboardButton("Смена лотка 🚾");
 		litterChangeButton.setCallbackData("Смена лотка 🚾");
 
-		InlineKeyboardButton foodChangeButton = new InlineKeyboardButton("Вкусняшка обновлена 🥩");
-		foodChangeButton.setCallbackData("Вкусняшка обновлена 🥩");
+		InlineKeyboardButton foodChangeButton = new InlineKeyboardButton("Миска обновлена 🥩");
+		foodChangeButton.setCallbackData("Миска обновлена 🥩");
 
 		InlineKeyboardButton waterChangeButton = new InlineKeyboardButton("Водичка обновлена 💦");
 		waterChangeButton.setCallbackData("Водичка обновлена 💦");
@@ -86,9 +116,18 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService{
 		addYearButton.setCallbackData("год");
 		List<InlineKeyboardButton> row = Arrays.asList(addDayButton, addMonthButton, addYearButton);
 		keyboard.add(row);
-//		keyboard.add(Collections.singletonList(addDayButton));
-//		keyboard.add(Collections.singletonList(addMonthButton));
-//		keyboard.add(Collections.singletonList(addYearButton));
+		return new InlineKeyboardMarkup(keyboard);
+	}
+	
+	@Override
+	public InlineKeyboardMarkup showListAnimal(long chatId, List<AnimalDto> animals) {
+		List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+		animals.forEach(animal -> {
+			InlineKeyboardButton button = new InlineKeyboardButton(animal.getAnimalName());
+			button.setCallbackData(animal.getAnimalId());
+			List<InlineKeyboardButton> row = Arrays.asList(button);
+			keyboard.add(row);
+		});
 		return new InlineKeyboardMarkup(keyboard);
 	}
 }

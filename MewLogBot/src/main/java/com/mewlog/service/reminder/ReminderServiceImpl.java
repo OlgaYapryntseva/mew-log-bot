@@ -60,9 +60,9 @@ public class ReminderServiceImpl implements ReminderService {
 	}
 	
 	@Override
-	@Scheduled(cron = "0 */2 * * * ?")
+	@Scheduled(cron = "0 */5 * * * ?")
 	public void sendServerNonStop() {
-		 long count = animalRepository.count();
-		 logger.warn("sendServerNonStop count animal = %s", count);
+//		 long count = animalRepository.count();
+//		 logger.info("sendServerNonStop count animal = {}", count);
     }
 }
