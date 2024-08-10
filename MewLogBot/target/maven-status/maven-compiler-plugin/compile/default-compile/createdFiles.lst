@@ -1,3 +1,4 @@
+com\mewlog\enums\MenuText.class
 com\mewlog\MewLogBotApplication.class
 com\mewlog\service\invitation\model\Invitation.class
 com\mewlog\service\reminder\dto\ReminderDto.class
@@ -14,6 +15,7 @@ com\mewlog\service\invitation\repository\InvitationRepository.class
 com\mewlog\service\TelegramBot.class
 com\mewlog\service\invitation\InvitationService.class
 com\mewlog\service\invitation\InvitationServiceImpl.class
+com\mewlog\service\menu\MenuService.class
 com\mewlog\service\reports\dto\ReportLogDto.class
 com\mewlog\configuration\BotConfig.class
 com\mewlog\service\sendmessage\SendMessageServiceImpl.class
@@ -22,3 +24,4 @@ com\mewlog\service\reports\ReportsServiceImpl.class
 com\mewlog\repository\model\Owner.class
 com\mewlog\repository\OwnerRepository.class
 com\mewlog\service\sendmessage\SendMessageService.class
+com\mewlog\service\dto\AnimalDto.class
