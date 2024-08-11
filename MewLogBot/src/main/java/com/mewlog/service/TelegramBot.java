@@ -32,7 +32,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
-
+	
 	@Autowired
 	OwnerRepository ownerRepository;
 
@@ -47,7 +47,8 @@ public class TelegramBot extends TelegramLongPollingBot {
 
 	@Autowired
 	ReportsService reportsService;
-
+	
+	final BotConfig config;
 	final Map<String, BiConsumer<Long, String>> commandActions = new HashMap<>();
 	final Map<Long, Boolean> waitingForAnimalName = new HashMap<>();
 	final Map<Long, Boolean> waitingForLogList = new HashMap<>();
@@ -56,9 +57,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 	final List<AnimalDto> listAnimal = new ArrayList<>();
 	AnimalDto selectedAnimal = null;
 	final Map<Long, String> keyword = new HashMap<>();
-	final Map<Long, String> logOptions = new HashMap<>();
-	final BotConfig config;
-	
+	final Map<Long, String> logOptions = new HashMap<>();	
 	final Logger logger = LoggerFactory.getLogger(TelegramBot.class);
 
 	@SuppressWarnings("deprecation")
@@ -92,13 +91,13 @@ public class TelegramBot extends TelegramLongPollingBot {
 	public void onUpdateReceived(Update update) {
 		if (update.hasMessage() && update.getMessage().hasText()) {
 			String messageText = update.getMessage().getText();
-			long chatId = update.getMessage().getChatId();
-			
-			System.out.println("message = " + messageText);
-			
+			long chatId = update.getMessage().getChatId();		
+System.out.println("message = " + messageText);	
 			if (waitingForAnimalName.getOrDefault(chatId, false)) {
+				if(!messageText.trim().toLowerCase().startsWith("mewlogbot=")) {
 				handleAnimalNameInput(chatId, update, messageText);
 				return;
+				}
 			}
 
 			if (waitingForLogList.getOrDefault(chatId, false) || waitingForLogPrivate.getOrDefault(chatId, false)) {
@@ -118,12 +117,16 @@ public class TelegramBot extends TelegramLongPollingBot {
 				return;
 			}
 
-			if (messageText.startsWith("token=")) {
+			if (messageText.trim().toLowerCase().startsWith("mewlogbot=")) {
+System.out.println("mewlogbot=");
+		        waitingForAnimalName.put(chatId, false);
 				String token = invitationService.extractToken(messageText);
 				if (token != null) {
 					sendMessage(chatId, invitationService.handleInvitation(token, chatId));
+					return;
 				} else {
 					sendMessage(chatId, "Неверный формат ссылки");
+					return;
 				}
 			}
 			
@@ -133,14 +136,17 @@ public class TelegramBot extends TelegramLongPollingBot {
 
 		} else if (update.hasCallbackQuery()) {
 			String callbackData = update.getCallbackQuery().getData();
-			System.out.println("call = " + callbackData);
+System.out.println("call = " + callbackData);
 			long chatId = update.getCallbackQuery().getMessage().getChatId();
 			if ("add animal".equals(callbackData)) {
 				addAnimalCommandReceived(chatId);
 			} else if ("Поменять питомца".equals(callbackData)) {
-				selectAminal(chatId);
-			} else if ("add log".equals(callbackData) || containsAnimalId(callbackData)) {
+				selectAnimal(chatId);
+			} else if ("add log".equals(callbackData)) {	
 				showLogOptions(chatId);
+            } else if (containsAnimalId(callbackData)) {
+				listAnimal.forEach(a -> {if(a.getAnimalId().equals(callbackData)) selectedAnimal = a;});
+				optionCommandReceived(chatId);
 			} else if ("Пользовательское сообщение".equals(callbackData)) {
 				addLogPrivate(chatId);
 			} else if (waitingForLogList.getOrDefault(chatId, false)) {
@@ -169,11 +175,9 @@ public class TelegramBot extends TelegramLongPollingBot {
 		waitingForLogPrivate.remove(chatId);
 		waitingForKeyword.remove(chatId);
 		keyword.clear();
-		logOptions.remove(chatId);
-		
-		hasAnimal(chatId);
-		String answer = "<b><i>Мяу, " + name + "! 🐾 </i></b> \nРад видеть тебя здесь! 😺";
-		sendMessage(chatId, answer);
+		logOptions.remove(chatId);		
+		sendMessage(chatId, MenuText.START_HELLO.getFormattedText(name));
+		optionCommandReceived(chatId);	
 	}
 	
 // ABOUT
@@ -189,49 +193,50 @@ public class TelegramBot extends TelegramLongPollingBot {
 //  -------------------------- OPTIONS -------------------------------------------------------	
 	
 	private void optionCommandReceived(long chatId) {
-		sendMessage(chatId, "Выберете задачу! 🎯");
+		if (hasAnimal(chatId)) {
+			sendMessage(chatId, MenuText.OPTION_LIST.getFormattedText(selectedAnimal.getAnimalName()));
+		}
 	}
 	
 // ADD ANIMAL
 	private void addAnimalCommandReceived(long chatId) {
-		sendMessage(chatId, "Как зовут вашего пушистика? ");
+		sendMessage(chatId, MenuText.PET_ADD_NAME.getKey());
 		waitingForAnimalName.put(chatId, true);
 	}
 
 	private void handleAnimalNameInput(long chatId, Update update, String animalName) {
 		if (waitingForAnimalName.containsKey(chatId)) {
-			Animal animal = new Animal();
-			animal.setAnimalName(animalName);
-			animal.addOwnerId(chatId);
-			animalRepository.save(animal);
-			Owner owner = new Owner(chatId, update.getMessage().getChat().getFirstName());
-			owner.addAnimal(animal.getAnimalId());
-			ownerRepository.save(owner);
+			if (!checkNameAndNotify(chatId, animalName)) {
+				Animal animal = new Animal();
+				animal.setAnimalName(animalName);
+				animal.addOwnerId(chatId);
+				animalRepository.save(animal);
+				Owner owner = new Owner(chatId, update.getMessage().getChat().getFirstName());
+				owner.addAnimal(animal.getAnimalId());
+				ownerRepository.save(owner);
+				waitingForAnimalName.remove(chatId);
+				AnimalDto animalDto = new AnimalDto(animal.getAnimalId().toString(), animal.getAnimalName());
+				listAnimal.add(animalDto);
+				selectedAnimal = animalDto;
+				sendMessage(chatId, MenuText.PET_IN_BASE.getFormattedText(animalDto.getAnimalName()));
+				optionCommandReceived(chatId);
+			}
 			waitingForAnimalName.remove(chatId);
-			AnimalDto animalDto = new AnimalDto(animal.getAnimalId().toString(), animal.getAnimalName());
-			listAnimal.add(animalDto);
-			selectedAnimal = animalDto;
-			sendMessage(chatId, "<b>Ваш питомец <i>" + animalDto.getAnimalName() + "</i> теперь с нами! 🎉</b>");
-			optionCommandReceived(chatId);
 		}
 	}
 
 // 	INVITATION
-
 	private void invitationCommandReceived(long chatId) {
 		hasAnimal(chatId);
 		String inviteLink = invitationService.generateInvitationLink(new ObjectId(selectedAnimal.getAnimalId()));
-		sendMessage(chatId, "Перешлите это сообщение другому хозяину питомца по имени " + selectedAnimal.getAnimalName()  + " 👇 \n");
-		sendMessage(chatId, "Щелкни по ссылке: " + config.getBotLink() + "\n" + "и отправь боту этот текст: \n");
+		sendMessage(chatId, MenuText.INVITATION_TEXT_1.getFormattedText(selectedAnimal.getAnimalName()));
+		sendMessage(chatId, MenuText.INVITATION_TEXT_2.getFormattedText(config.getBotLink()));
 		sendMessage(chatId, inviteLink);
 	}
 
 //  ADD LOG
-	
 	private void showLogOptions(long chatId) {
-		hasAnimal(chatId);
-		sendMessage(chatId, "Выберите из списка или добавьте свое для <b>" 
-		                    + selectedAnimal.getAnimalName() + "</b>: ", buttonCrafterService.showLogOptions(chatId));
+		sendMessage(chatId, MenuText.LOG_LIST.getFormattedText(selectedAnimal.getAnimalName()), buttonCrafterService.showLogOptions(chatId));
 		waitingForLogList.put(chatId, true);
 	}
 	
@@ -241,8 +246,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 	}
 		
 	private void handleLogEntryInput(long chatId, String logEntry) {
-		if ((waitingForLogList.containsKey(chatId) && logEntry != null) || (waitingForLogPrivate.containsKey(chatId) && logEntry != null)) {
-			System.out.println("handleLogEntryInput mess = "  + logEntry + "id = " + selectedAnimal.getAnimalId());		
+		if ((waitingForLogList.containsKey(chatId) && logEntry != null) || (waitingForLogPrivate.containsKey(chatId) && logEntry != null)) {	
 			Animal animal = animalRepository.findById(new ObjectId(selectedAnimal.getAnimalId())).get();
 			if (animal != null) {
 				Logs log = new Logs();
@@ -253,15 +257,14 @@ public class TelegramBot extends TelegramLongPollingBot {
 				waitingForLogPrivate.remove(chatId);
 				logOptions.remove(chatId);
 				sendMessage(chatId, logEntry);
-				sendMessage(chatId, "<i>Мяу - эта запись в базе у <b>" + selectedAnimal.getAnimalName() + "</b>! ✔️</i>");
+				sendMessage(chatId, MenuText.ADD_LOG.getFormattedText(selectedAnimal.getAnimalName()));
 			} else {
-				sendMessage(chatId, "Ваш питомец спрятался! Добавьте его, чтобы продолжить! 🙀");
+				sendMessage(chatId, MenuText.ADD_ANIMAL.getKey());
 			}
 		}
 	}
 
 //  REPORT
-	
 	private void reportCommandReceived(long chatId) {
 		hasAnimal(chatId);
 		InlineKeyboardMarkup showReportType = buttonCrafterService.showReportTypeOptions(chatId);
@@ -281,16 +284,16 @@ public class TelegramBot extends TelegramLongPollingBot {
 	private void handleReportPeriod(long chatId, String callbackData) {
 		String data = null;
 		if (keyword.get(chatId) != null && !keyword.get(chatId).isEmpty()) {
-			data = reportsService.fingMessageByKeyAndPeriod(chatId, callbackData, keyword.get(chatId), selectedAnimal.getAnimalId());
+			data = reportsService.fingMessageByKeyAndPeriod(chatId, callbackData, keyword.get(chatId),
+					selectedAnimal.getAnimalId());
 		} else {
 			data = reportsService.fingMessageByPeriod(chatId, callbackData, selectedAnimal.getAnimalId());
 		}
-		sendMessage(chatId, data.isEmpty() ? 
-				"Упс, за этот период пусто! 🐾" : "<b><i>" + selectedAnimal.getAnimalName() + " 💖\n</i>Отчет за " + callbackData + ": </b>" + data);
+		sendMessage(chatId, data.isEmpty() ? MenuText.REPORT_EMPTY.getKey()
+				: MenuText.REPORT_TITLE.getFormattedText(selectedAnimal.getAnimalName(), callbackData, data));
 	}
 	
 // CANCEL
-
 	private void cancelCommandReceived(long chatId) {
 		listAnimal.clear();
 		selectedAnimal = null;
@@ -300,26 +303,24 @@ public class TelegramBot extends TelegramLongPollingBot {
 		waitingForKeyword.remove(chatId);
 		keyword.clear();
 		logOptions.remove(chatId);
-		sendMessage(chatId, "Все операции отменены ✖️\nНачни с начала - нажми /start 🎬");
+		sendMessage(chatId, MenuText.CANCEL_TEXT.getKey());
 	}
 	
 // SEND MESSAGE
-
 	private void sendMessage(long chatId, String textToSend) {
 		SendMessage message = new SendMessage();
 		message.setChatId(String.valueOf(chatId));
 		message.setText(textToSend);
 		message.setParseMode(ParseMode.HTML);
-		if (textToSend.contains("Мяу") && !textToSend.contains("пиши ...")) {
-			if(listAnimal.size() <= 1 || textToSend.contains("запись")) {
-			message.setReplyMarkup(buttonCrafterService.createInlineKeyboard(chatId));
-			} 
-		}
+		
+		if(textToSend.contains("эта запись в базе")) {
+			message.setReplyMarkup(buttonCrafterService.showAddOptions(chatId));
+		} 
 		if (textToSend.contains(MenuText.REPORT_PERIOD.getKey())) {
 			message.setReplyMarkup(buttonCrafterService.showReportOptions(chatId));
 		}
-		if (textToSend.equals("Выберете задачу! 🎯")) {
-			message.setReplyMarkup(buttonCrafterService.createAllOptions(chatId));
+		if (textToSend.contains("Выберете задачу ")) {	
+			message.setReplyMarkup(buttonCrafterService.showBotOptions(chatId));
 		}
 		try {
 			execute(message);
@@ -343,25 +344,42 @@ public class TelegramBot extends TelegramLongPollingBot {
 		}
 	}
 	
-// OTHER
-	
-	private void hasAnimal(long chatId) {
-		if(listAnimal.isEmpty()) {
-			List<Animal> animals = animalRepository.findByOwnersId(chatId);
-			animals.forEach(a -> listAnimal.add(new AnimalDto(a.getAnimalId().toString(), a.getAnimalName())));
-		} 
-		if(listAnimal.size() == 1) {
-			selectedAnimal = listAnimal.get(0);
-		} else {
-			selectAminal(chatId);
-		} 
-	}
-	
-	private void selectAminal(long chatId) {
-		selectedAnimal = null;
-		sendMessage(chatId, "Выберете питомца: ", buttonCrafterService.showListAnimal(chatId, listAnimal));	
+// OTHER	
+	private boolean hasAnimal(long chatId) {
+	    if (listAnimal.isEmpty()) {
+	        List<Animal> animals = animalRepository.findByOwnersId(chatId);
+	        if (animals.isEmpty()) {
+	            sendMessage(chatId, MenuText.ADD_ANIMAL.getKey());
+	            addAnimalCommandReceived(chatId);
+	            return false;
+	        } else {
+	            animals.forEach(a -> listAnimal.add(new AnimalDto(a.getAnimalId().toString(), a.getAnimalName())));
+	        }
+	    }
+	    if (selectedAnimal == null) {
+	        selectAnimal(chatId);
+	    }
+	    return selectedAnimal != null;
 	}
 
+	private void selectAnimal(long chatId) {
+	    if (listAnimal.size() == 1) {
+	        selectedAnimal = new AnimalDto(listAnimal.get(0).getAnimalId(), listAnimal.get(0).getAnimalName());
+	    } else {
+	        sendMessage(chatId, MenuText.PET_SELECT.getKey(), buttonCrafterService.showListAnimal(chatId, listAnimal));
+	    }
+	}
+
+	private Boolean checkNameAndNotify(long chatId, String nameAnimal) {
+	    List<Animal> animals = animalRepository.findByOwnersId(chatId);
+	    boolean exists = animals.stream()
+	                            .anyMatch(a -> a.getAnimalName().equalsIgnoreCase(nameAnimal));
+	    if (exists) {
+	        sendMessage(chatId, MenuText.PET_EXISTS.getFormattedText(nameAnimal));
+	    }
+	    return exists;
+	}
+	
 	private Boolean containsAnimalId(String message) {
 		return listAnimal.stream().anyMatch(animal -> animal.getAnimalId().equals(message));
 	}

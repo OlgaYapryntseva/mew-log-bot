@@ -30,8 +30,8 @@ public class BotConfig {
     
     public BotConfig() {
         listBotCommand.add(new BotCommand("/start", "начать взаимодействие с ботом"));
-        listBotCommand.add(new BotCommand("/option", "вести список всех команд"));
-        listBotOption.add(new BotCommand("/invitation", "пригласить второго хозяина"));
+        listBotCommand.add(new BotCommand("/option", "вывести список всех команд"));
+        listBotOption.add(new BotCommand("/invitation", "пригласить еще одного хозяина"));
         listBotOption.add(new BotCommand("/report", "сделать отчет"));
         listBotCommand.add(new BotCommand("/cancel", "отменить все операции"));
         listBotCommand.add(new BotCommand("/about", "узнать общую информацию о боте"));

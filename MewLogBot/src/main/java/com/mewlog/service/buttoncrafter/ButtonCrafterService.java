@@ -7,11 +7,11 @@ import com.mewlog.service.dto.AnimalDto;
 
 public interface ButtonCrafterService {
 	
-	InlineKeyboardMarkup createAllOptions(long chatId);
+	InlineKeyboardMarkup showBotOptions(long chatId);
 	
 	InlineKeyboardMarkup showLogOptions(long chatId);
 	
-	InlineKeyboardMarkup createInlineKeyboard(long chatId);
+	InlineKeyboardMarkup showAddOptions(long chatId);
 	
 	InlineKeyboardMarkup showReportTypeOptions(long chatId);
 	

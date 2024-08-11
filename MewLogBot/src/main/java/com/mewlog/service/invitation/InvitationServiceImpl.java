@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import com.mewlog.enums.MenuText;
 import com.mewlog.repository.AnimalRepository;
 import com.mewlog.repository.model.Animal;
 import com.mewlog.service.invitation.model.Invitation;
@@ -25,7 +27,7 @@ public class InvitationServiceImpl implements InvitationService {
     public String generateInvitationLink(ObjectId animalId) {
         String token = UUID.randomUUID().toString();
         saveInvitationToken(animalId, token);
-        return "Hi, MewLogBot=" + token;
+        return "mewlogbot=" + token;
     }
 
     private void saveInvitationToken(ObjectId animalId, String token) {
@@ -40,9 +42,14 @@ public class InvitationServiceImpl implements InvitationService {
         if (invitation != null) {
             Animal animal = animalRepository.findById(invitation.getAnimalId()).orElse(null);
             if (animal != null) {
+            	if(!animal.getOwnersId().contains(chatId)) {
                 animal.addOwnerId(chatId);
                 animalRepository.save(animal);
-                return "Мяу-куку! Вы успешно добавлены как владелец кота " + animal.getAnimalName() + " 😺🎈!";
+                invitationRepository.delete(invitation);
+                return "Мяу-куку! Вы успешно добавлены как владелец питомца <b>" + animal.getAnimalName() + "</b> 😺🎈!";
+            	} else {
+            		return MenuText.PET_EXISTS.getFormattedText(animal.getAnimalName());
+            	}
             }else {
                 return "Питомец не найден.";
             }
@@ -53,7 +60,7 @@ public class InvitationServiceImpl implements InvitationService {
     
     @Override
     public String extractToken(String url) {
-		Pattern pattern = Pattern.compile("Hi, MewLogBot=([^&]+)");
+		Pattern pattern = Pattern.compile("mewlogbot=([^&]+)");
 		Matcher matcher = pattern.matcher(url);
 		if (matcher.find()) {
 			return matcher.group(1);

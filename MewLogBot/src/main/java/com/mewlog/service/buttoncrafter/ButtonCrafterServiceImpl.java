@@ -15,12 +15,13 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class ButtonCrafterServiceImpl implements ButtonCrafterService{
+public class ButtonCrafterServiceImpl implements ButtonCrafterService {
 
 	@Autowired
 	AnimalRepository animalRepository;
 	
-	public InlineKeyboardMarkup createInlineKeyboard(long chatId) {
+	@Override
+	public InlineKeyboardMarkup showAddOptions(long chatId) {
 		List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 		List<Animal> animal = animalRepository.findByOwnersId(chatId);
 		if (animal.size() == 0) {
@@ -29,21 +30,22 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService{
 			keyboard.add(Collections.singletonList(addAnimalButton));
 			return new InlineKeyboardMarkup(keyboard);
 		}
-		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Записать кошачьи приключения ✏");
+		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Добавить событие ✏");
 		addLogButton.setCallbackData("add log");
 		keyboard.add(Collections.singletonList(addLogButton));
 		return new InlineKeyboardMarkup(keyboard);
 	}
 	
-	public InlineKeyboardMarkup createAllOptions(long chatId) {
+	@Override
+	public InlineKeyboardMarkup showBotOptions(long chatId) {
 		List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
-		InlineKeyboardButton addAnimalButton = new InlineKeyboardButton("Добавить пушистика 😻");
+		InlineKeyboardButton addAnimalButton = new InlineKeyboardButton("Добавить питомца 🐈‍⬛");
 		addAnimalButton.setCallbackData("add animal");
 		
-		InlineKeyboardButton addOwnerButton = new InlineKeyboardButton("Добавить ещё хозяина 🐾");
+		InlineKeyboardButton addOwnerButton = new InlineKeyboardButton("Поделиться 🐾");
 		addOwnerButton.setCallbackData("/invitation");	
 		
-		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Записать приключения ✏");
+		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Добавить событие ✏");
 		addLogButton.setCallbackData("add log");
 		
 		InlineKeyboardButton addReportButton = new InlineKeyboardButton("Создать отчет 📊");
@@ -63,6 +65,7 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService{
 		return new InlineKeyboardMarkup(keyboard);
 	}
 
+	@Override
 	public InlineKeyboardMarkup showLogOptions(long chatId) {
 		InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
 
@@ -75,7 +78,7 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService{
 		InlineKeyboardButton foodChangeButton = new InlineKeyboardButton("Миска обновлена 🥩");
 		foodChangeButton.setCallbackData("Миска обновлена 🥩");
 
-		InlineKeyboardButton waterChangeButton = new InlineKeyboardButton("Водичка обновлена 💦");
+		InlineKeyboardButton waterChangeButton = new InlineKeyboardButton("Свежая вода 💦");
 		waterChangeButton.setCallbackData("Водичка обновлена 💦");
 
 		InlineKeyboardButton customLogButton = new InlineKeyboardButton("Ваше наблюдение 🧐");
