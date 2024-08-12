@@ -13,4 +13,4 @@ COPY target/mew-log-bot-0.0.1-SNAPSHOT.jar ./mew-log-bot.jar
 
 EXPOSE 8080
 
-CMD ["java", "-jar", "/app/MewLogBot.jar"]
+CMD ["java", "-jar", "/app/mew-log-bot.jar"]
