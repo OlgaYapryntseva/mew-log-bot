@@ -20,6 +20,10 @@ import com.mewlog.service.buttoncrafter.ButtonCrafterService;
 import com.mewlog.service.dto.AnimalDto;
 import com.mewlog.service.invitation.InvitationService;
 import com.mewlog.service.reports.ReportsService;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +33,7 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
@@ -54,6 +59,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 	final Map<Long, Boolean> waitingForLogList = new HashMap<>();
 	final Map<Long, Boolean> waitingForLogPrivate = new HashMap<>();
 	final Map<Long, Boolean> waitingForKeyword = new HashMap<>();
+	final Map<Long, Boolean> waitingForDate = new HashMap<>();
 	final List<AnimalDto> listAnimal = new ArrayList<>();
 	AnimalDto selectedAnimal = null;
 	final Map<Long, String> keyword = new HashMap<>();
@@ -93,6 +99,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 			String messageText = update.getMessage().getText();
 			long chatId = update.getMessage().getChatId();		
 System.out.println("message = " + messageText);	
+System.out.println("waitingForDate = " + waitingForDate.get(chatId));
 			if (waitingForAnimalName.getOrDefault(chatId, false)) {
 				if(!messageText.trim().toLowerCase().startsWith("mewlogbot=")) {
 				handleAnimalNameInput(chatId, update, messageText);
@@ -115,6 +122,21 @@ System.out.println("message = " + messageText);
 				waitingForKeyword.put(chatId, false);
 				handleReportTypePeriod(chatId);
 				return;
+			}
+			
+			if (waitingForDate.getOrDefault(chatId, false)) {
+				//System.out.println("waitingForDate = " + waitingForDate.get(chatId));
+				LocalDate date;
+			    try {
+			    	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+			        date = LocalDate.parse(messageText.trim(), formatter);
+			        showLogsForDate(chatId, date);
+			    } catch (DateTimeParseException e) {
+			        sendMessage(chatId, "Неверный формат даты. Попробуйте еще раз (ДД/ММ/ГГГГ).");
+			        return;
+			    }
+			    
+			    return;
 			}
 
 			if (messageText.trim().toLowerCase().startsWith("mewlogbot=")) {
@@ -144,6 +166,12 @@ System.out.println("call = " + callbackData);
 				selectAnimal(chatId);
 			} else if ("add log".equals(callbackData)) {	
 				showLogOptions(chatId);
+			} else if ("delete log".equals(callbackData)) {	
+				deleteLogByDate(chatId);
+			} else if (callbackData.startsWith("deleteLog:")) {	
+				 String logIdString = callbackData.split(":")[1];
+		            ObjectId logId = new ObjectId(logIdString);
+		           deleteLogById(chatId, logId);
             } else if (containsAnimalId(callbackData)) {
 				listAnimal.forEach(a -> {if(a.getAnimalId().equals(callbackData)) selectedAnimal = a;});
 				optionCommandReceived(chatId);
@@ -165,7 +193,7 @@ System.out.println("call = " + callbackData);
 			}
 		}
 	}
-	
+
 // START	
 	private void startCommandReceived(long chatId, String name) {
 		listAnimal.clear();
@@ -261,6 +289,58 @@ System.out.println("call = " + callbackData);
 			} else {
 				sendMessage(chatId, MenuText.ADD_ANIMAL.getKey());
 			}
+		}
+	}
+	
+// DELETE LOG
+	private void deleteLogByDate(long chatId) {
+		sendMessage(chatId, "Укажите дату, за которую хотите удалить запись (формат: ДД/ММ/ГГГГ) 📅");
+		waitingForDate.put(chatId, true);
+	}
+	
+	private void showLogsForDate(long chatId, LocalDate date) {
+		Animal animal = animalRepository.findByAnimalId(new ObjectId(selectedAnimal.getAnimalId()));
+		if (animal.getLogs() == null && !animal.getLogs().isEmpty()) {
+			sendMessage(chatId, MenuText.REPORT_EMPTY.getKey());
+			return;
+		}
+		List<Logs> logs = animal.getLogs().stream().filter(l -> l.getDateCreate().toLocalDate().equals(date)).toList();
+
+		if (logs.isEmpty()) {
+			waitingForDate.put(chatId, true);
+			sendMessage(chatId, "За указанную дату записи не найдены. Попробуйте другую дату.");
+			return;
+		}
+
+		StringBuilder logListMessage = new StringBuilder("Выберите событие для удаления:\n");
+		InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+		List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+
+		for (int i = 0; i < logs.size(); i++) {
+			Logs log = logs.get(i);
+			logListMessage.append(i + 1).append(". ").append(log.getMessage()).append(" (")
+					.append(log.getDateCreate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append(")\n");
+
+			InlineKeyboardButton button = new InlineKeyboardButton();
+			button.setText("Удалить событие № " + (i + 1));
+			button.setCallbackData("deleteLog:" + log.getLogId());
+
+			List<InlineKeyboardButton> rowInline = new ArrayList<>();
+			rowInline.add(button);
+			rowsInline.add(rowInline);
+		}
+
+		inlineKeyboardMarkup.setKeyboard(rowsInline);
+		sendMessage(chatId, logListMessage.toString(), inlineKeyboardMarkup);
+		waitingForDate.put(chatId, false);
+	}
+	
+	private void deleteLogById(long chatId, ObjectId logId) {
+		Animal animal = animalRepository.findByAnimalId(new ObjectId(selectedAnimal.getAnimalId()));
+		if(animal.getLogs() != null && !animal.getLogs().isEmpty()) {
+	        animal.getLogs().removeIf(l -> l.getLogId().equals(logId));
+	        animalRepository.save(animal);	  
+	        sendMessage(chatId, "Событие успешно удалёно ✂️");
 		}
 	}
 

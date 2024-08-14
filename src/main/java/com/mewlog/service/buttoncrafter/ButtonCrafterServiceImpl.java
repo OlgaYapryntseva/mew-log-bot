@@ -48,6 +48,9 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService {
 		InlineKeyboardButton addLogButton = new InlineKeyboardButton("Добавить событие ✏");
 		addLogButton.setCallbackData("add log");
 		
+		InlineKeyboardButton deleteButton = new InlineKeyboardButton("Удалить событие 🗑️");
+		deleteButton.setCallbackData("delete log");
+		
 		InlineKeyboardButton addReportButton = new InlineKeyboardButton("Создать отчет 📊");
 		addReportButton.setCallbackData("/report");
 		
@@ -55,8 +58,8 @@ public class ButtonCrafterServiceImpl implements ButtonCrafterService {
 		addSubButton.setCallbackData("Поменять питомца");
 
 		List<InlineKeyboardButton> row1 = Arrays.asList(addAnimalButton, addOwnerButton);
-	    List<InlineKeyboardButton> row2 = Arrays.asList(addLogButton, addReportButton);
-	    List<InlineKeyboardButton> row3 = Arrays.asList(addSubButton);
+	    List<InlineKeyboardButton> row2 = Arrays.asList(addLogButton, deleteButton);
+	    List<InlineKeyboardButton> row3 = Arrays.asList(addReportButton, addSubButton);
 
 		keyboard.add(row1);
 		keyboard.add(row2);
